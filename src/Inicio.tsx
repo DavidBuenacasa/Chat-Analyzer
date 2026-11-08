@@ -1,160 +1,75 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable prefer-const */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import es_text from "./text/es.json";
-import FileSelectComponent, {
-  FileSelectComponentHandle,
-} from "./components/elements/FileSelectComponent";
-import RadioButtonComponent, {
-  RadioButtonComponentHandle,
-} from "./components/elements/RadioButtonComponent";
-import "./styles/inicio.css";
-import Stats from "./fichero/Stats";
 import { useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import FileSelectComponent from "./components/elements/FileSelectComponent";
+import RadioButtonComponent from "./components/elements/RadioButtonComponent";
 import HeaderNavComponent from "./components/elements/headerNav";
-import { Alert } from "flowbite-react";
-import { HiInformationCircle } from "react-icons/hi";
+import Stats from "./fichero/Stats";
+import "./styles/inicio.css";
 
-function Inicio() {
-  const radioButtonRef = useRef<RadioButtonComponentHandle>(null);
-  const fileSelectRef = useRef<FileSelectComponentHandle>(null);
+export default function Inicio() {
   const navigate = useNavigate();
+  const [file, setFile] = useState<File | null>(null);
+  const [platform, setPlatform] = useState("");
+  const [error, setError] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const processing = useRef(false);
 
-  const [showAlert, setShowAlert] = useState(false);
-  const [mensajeAlert, setMensajeAlert] = useState("");
-  {
-    /*Al hacer click sobre analizar se comprobara que todos los parametros son correctos*/
-  }
-  function checkElements() {
-    let error: boolean = false;
-    let messageError: string = "";
-    let fileSelected: File | null = new File([], "filename");
-    let radioOption: string = "";
-
-    {
-      /*Se comprueba que se ha seleccionado un RadioButton*/
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (processing.current) return;
+    if (!file) return setError("Selecciona un archivo de conversación.");
+    if (!/\.txt$/i.test(file.name)) return setError("El archivo debe tener extensión .txt.");
+    if (file.size === 0) return setError("El archivo está vacío. Exporta de nuevo la conversación.");
+    if (platform !== "iphone") return setError("Selecciona la plataforma de origen.");
+    setError("");
+    processing.current = true;
+    setIsAnalyzing(true);
+    try {
+      // Permite que el navegador pinte el estado de carga antes del análisis.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      const stats = new Stats(file, platform);
+      await stats.analizar();
+      navigate("/dashboard", { state: stats.obtenerData() });
+    } catch {
+      setError("No se ha podido analizar la conversación. Comprueba que es un chat exportado desde WhatsApp sin archivos multimedia.");
+    } finally {
+      processing.current = false;
+      setIsAnalyzing(false);
     }
-
-    if (radioButtonRef.current) {
-      if (radioButtonRef.current.checkRadioButtonSelected()) {
-        error = true;
-        messageError += es_text.errors["no-radioButton-selected"] + "\n";
-      } else {
-        radioOption = radioButtonRef.current.getOptionSelected();
-      }
-    }
-
-    {
-      /*Se comprueba que se ha seleccionado un Arhivo valido .txt*/
-    }
-
-    if (fileSelectRef.current) {
-      if (fileSelectRef.current.checkFile()) {
-        error = true;
-        messageError += es_text.errors["extension-error"];
-      } else {
-        fileSelected = fileSelectRef.current.getFileSelected();
-      }
-    }
-
-    {
-      /*Si hay un error se procedera a mostrar un alert con el mensaje de error*/
-    }
-
-    if (error) {
-      modalError(messageError);
-    } else {
-      {
-        /*Si todo funciona bien se analizara el archivo*/
-      }
-      analizar(fileSelected, radioOption);
-    }
-  }
-
-  {
-    /*Muestra un Alert con un error*/
-  }
-  function modalError(message: string) {
-    setMensajeAlert(message);
-    setShowAlert(true);
-    setTimeout(() => {
-      setShowAlert(false); // Lo oculta tras 3 segundos (3000 ms)
-    }, 3000);
-  }
-
-  {
-    /*Analiza el Archivo y cambia de a la pestaña de Dashboard*/
-  }
-  async function analizar(file: File | null, radioOption: string) {
-    {
-      /*Crea un objeto Stats que leera el archivo y procesara los datos*/
-    }
-    const stats = new Stats(file, radioOption);
-    await stats.analizar();
-
-    {
-      /*Recogemos los datos en JSON*/
-    }
-    const jsonData = stats.obtenerData();
-
-    {
-      /*Se cambia a la pestaña Dashboard*/
-    }
-    navigate("/dashboard", { state: jsonData });
   }
 
   return (
-    <div>
+    <div className="wa-home">
       <HeaderNavComponent />
-      <div className="flex h-screen w-full flex-col items-center justify-center gap-2">
-        {/*Titulo e Imagen principal*/}
-        <div className="titulo">
-          <h1 className="mb-4 text-4xl font-extrabold leading-none tracking-tight text-gray-900 dark:text-white md:text-5xl lg:text-6xl">
-            {es_text["main-title"]}{" "}
-            <span className="text-blue-600 dark:text-blue-500">
-              {es_text["span-title"]}
-            </span>
-          </h1>
-        </div>
-        {/* Plataformas soportadas (Texto más pequeño) */}
-        <div className="flex flex-col items-center gap-1">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 md:text-base">
-            {es_text["supports-platadormas"]}
-          </p>
-          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-            {es_text["platadormas-list"]}
-          </span>
-        </div>
-        {showAlert && (
-          <Alert
-            color="failure"
-            rounded
-            onDismiss={() => setShowAlert(false)}
-            icon={HiInformationCircle}
-            className="m-5 flex items-center justify-between"
-          >
-            <span className="font-medium">Info alert!</span>
-            {mensajeAlert}
-          </Alert>
-        )}
-        <FileSelectComponent ref={fileSelectRef}></FileSelectComponent>
-
-        <RadioButtonComponent ref={radioButtonRef}></RadioButtonComponent>
-
-        {/*Boton Analizar*/}
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={checkElements}
-            className="mb-2 me-2 rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-          >
-            Analizar
-          </button>
-        </div>
-      </div>
+      <main className="wa-layout">
+        <section className="wa-intro" aria-labelledby="wa-title">
+          <span className="wa-eyebrow">WHATSAPP ANALYZER</span>
+          <h1 id="wa-title">Cada conversación<br />tiene una <em>historia.</em></h1>
+          <p>Descubre los patrones, los momentos y las personas que dan vida a tus chats.</p>
+          <ul className="wa-features">
+            <li><span aria-hidden="true">01</span> Tu actividad a lo largo del tiempo</li>
+            <li><span aria-hidden="true">02</span> Quién participa más en el chat</li>
+            <li><span aria-hidden="true">03</span> Una nueva perspectiva de tus mensajes</li>
+          </ul>
+          <div className="wa-note">Empieza con una conversación exportada de WhatsApp en formato .txt.</div>
+        </section>
+        <section className="wa-card" aria-labelledby="wa-form-title">
+          <div className="wa-card-heading"><span className="wa-badge">EMPIEZA AQUÍ</span><h2 id="wa-form-title">Explora tu conversación</h2><p>Prepara tu archivo y descubre qué cuenta tu chat.</p></div>
+          <form onSubmit={handleSubmit} aria-busy={isAnalyzing}>
+            <fieldset className="wa-fields" disabled={isAnalyzing}>
+              <FileSelectComponent file={file} onChange={(nextFile) => { setFile(nextFile); setError(""); }} />
+              <RadioButtonComponent value={platform} onChange={(value) => { setPlatform(value); setError(""); }} />
+            </fieldset>
+            {error && <div className="wa-error" role="alert">{error}</div>}
+            <button className="wa-submit" type="submit" disabled={isAnalyzing}>
+              {isAnalyzing ? <><span className="wa-spinner" aria-hidden="true" /> Analizando conversación…</> : <>Analizar conversación <span aria-hidden="true">→</span></>}
+            </button>
+            <p className="wa-status" role="status">{isAnalyzing ? "Estamos preparando tus estadísticas." : "Sin configurar cuentas ni conectar WhatsApp."}</p>
+          </form>
+          <details className="wa-help"><summary>¿Cómo exporto mi conversación?</summary><p>En WhatsApp para iPhone, abre el chat, pulsa el nombre del contacto o grupo y selecciona «Exportar chat» → «Sin archivos». Si recibes un ZIP, extráelo y selecciona el archivo .txt.</p></details>
+        </section>
+      </main>
     </div>
   );
 }
-
-export default Inicio;

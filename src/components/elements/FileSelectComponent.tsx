@@ -1,63 +1,40 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { ChangeEvent, forwardRef, useImperativeHandle, useState } from "react";
-import es_text from "../../text/es.json";
+import { useId, useState } from "react";
+import type { DragEvent } from "react";
 
-// Definimos los métodos que queremos exponer
-export interface FileSelectComponentHandle {
-  getFileSelected: () => File | null;
-  checkFile: () => boolean;
+interface FileSelectComponentProps {
+  file: File | null;
+  onChange: (file: File | null) => void;
 }
 
-const FileSelectComponent = forwardRef<FileSelectComponentHandle>((_, ref) => {
-  const [inputFile, setInputFile] = useState<File | null>(null);
-
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-
-    const selectedFile =event.target.files?.[0]
-
-    if(selectedFile){
-      setInputFile(selectedFile);
+export default function FileSelectComponent({ file, onChange }: FileSelectComponentProps) {
+  const id = useId();
+  const [isDragging, setIsDragging] = useState(false);
+  const [dropError, setDropError] = useState("");
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    if (event.dataTransfer.files.length !== 1) {
+      setDropError("Arrastra un único archivo .txt.");
+      return;
     }
-  };
-
-  // Método para obtener la opción seleccionada
-  const getFileSelected = () => {
-    return inputFile;
-  };
-
-  const checkFile = () => {
-    let error = false;
-    // Comprobar que el archivo no está vacío y que la extensión es correcta
-    if (inputFile) {
-      const extensionFile = inputFile.name.split(".").pop();
-      if (extensionFile !== "txt") {
-        error = true;
-      }
-    } else {
-      error = true;
-    }
-    return error;
-  };
-
-  // Exponemos los métodos utilizando useImperativeHandle
-  useImperativeHandle(ref, () => ({
-    getFileSelected,
-    checkFile,
-  }));
-
+    setDropError("");
+    onChange(event.dataTransfer.files[0]);
+  }
   return (
-    <div className="mb-10">
-      <label className="mb-2 block text-xl font-medium text-gray-900 dark:text-white">
-        {es_text["input-file-label"]}
+    <div className="wa-field">
+      <label className="wa-label" htmlFor={id}><span>01</span> Sube tu conversación</label>
+      <label className={`wa-dropzone${isDragging ? " is-dragging" : ""}${file ? " has-file" : ""}`} htmlFor={id}
+        onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)} onDrop={handleDrop}>
+        <input id={id} type="file" accept=".txt,text/plain" aria-describedby={`${id}-hint`}
+          onChange={(event) => { const selected = event.target.files?.[0]; if (selected) { setDropError(""); onChange(selected); } event.target.value = ""; }} />
+        <svg className="wa-upload-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" /></svg>
+        <strong>{file ? file.name : "Arrastra aquí tu archivo"}</strong>
+        <span>{file ? `${(file.size / 1024).toLocaleString("es-ES", { maximumFractionDigits: 1 })} KB · Pulsa para cambiarlo` : "o pulsa para seleccionarlo"}</span>
+        <small id={`${id}-hint`}>Conversación exportada · Formato .txt</small>
       </label>
-      <input
-        className="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
-        id="file_input"
-        type="file"
-        onChange={handleInputChange}
-      ></input>
+      {dropError && <p className="wa-error" role="alert">{dropError}</p>}
+      {file && <button type="button" className="wa-remove" onClick={() => { onChange(null); setDropError(""); }}>Quitar archivo</button>}
     </div>
   );
-});
-
-export default FileSelectComponent;
+}

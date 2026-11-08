@@ -1,45 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import es_text from "../../text/es.json";
-import { useState } from "react";
-
-interface SelectPersonaData {
-  personas: string[];
-  onPersonaChange: (persona: string) => void;
+import { useId } from "react";
+interface Props { personas: string[]; value: string; onPersonaChange: (person: string) => void }
+export default function SelectPersona({ personas, value, onPersonaChange }: Props) {
+  const id = useId();
+  return <div className="db-filter"><label htmlFor={id}>Participante</label><select id={id} value={value} disabled={!personas.length} onChange={(event) => onPersonaChange(event.target.value)}>{personas.map((person) => <option key={person} value={person}>{person}</option>)}</select></div>;
 }
-
-const SelectPersona = ({ personas, onPersonaChange }: SelectPersonaData) => {
-  const [personaSelected, setPersonaSelected] = useState(personas[0]);
-
-  const handleOptionChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedPersona = event.target.value;
-    setPersonaSelected(selectedPersona);
-    onPersonaChange(selectedPersona);
-  };
-
-  return (
-    <div>
-      <form className="mx-auto max-w-sm">
-        <label
-          htmlFor="personas"
-          className="mb-2 block text-xl font-medium text-gray-900 dark:text-white"
-        >
-          {es_text.SelectPersona}
-        </label>
-        <select
-          id="personas"
-          className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
-          onChange={handleOptionChange}
-          value={personaSelected}
-        >
-          {personas.map((persona, index) => (
-            <option key={index} value={persona}>
-              {persona}
-            </option>
-          ))}
-        </select>
-      </form>
-    </div>
-  );
-};
-
-export default SelectPersona;

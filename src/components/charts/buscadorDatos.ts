@@ -1,198 +1,73 @@
-/* eslint-disable prefer-const */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+export const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"] as const;
+export const CATEGORIES = ["mensajesTexto", "mensajesAudio", "fotos", "videos", "stickers", "gifs", "multimediaOmitido"] as const;
+export type Category = typeof CATEGORIES[number];
+export type Counts = Record<Category, number>;
+export type Months = Record<string, Counts>;
+export interface ChatRecord { nombre: string; año: string; mensajes: Months[] }
+export interface ChartData { series: { key: string; name: string }[]; data: { name: string; [key: string]: string | number }[] }
+export interface PieData { name: string; value: number }
+export const LABELS: Record<Category, string> = { mensajesTexto: "Texto", mensajesAudio: "Audios", fotos: "Fotos", videos: "Vídeos", stickers: "Stickers", gifs: "GIF", multimediaOmitido: "Multimedia omitido" };
+export const formatYear = (year: string) => /^\d{2}$/.test(year) ? `20${year}` : year;
+export const emptyCounts = (): Counts => ({ mensajesTexto: 0, mensajesAudio: 0, fotos: 0, videos: 0, stickers: 0, gifs: 0, multimediaOmitido: 0 });
+export const sumCounts = (counts: Counts) => CATEGORIES.reduce((sum, key) => sum + counts[key], 0);
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
-import {
-  DataPieChart,
-  DataStructureByYear,
-  MensajesType,
-  Meses,
-  mesesMap,
-  Registro,
-} from "../../fichero/types";
-
-class BuscadorDatos {
-  private sumarMensajesDeMeses(mesesArray: Meses[]): number {
-    return mesesArray.reduce((total, meses) => {
-      return (
-        total +
-        Object.values(meses).reduce((mesTotal, mes) => {
-          return (
-            mesTotal +
-            Object.values(mes).reduce(
-              (tipoTotal: number, numMensajes) =>
-                tipoTotal + (numMensajes as number),
-              0,
-            )
-          );
-        }, 0)
-      );
-    }, 0);
-  }
-
-  sumarMensajesType(mensajes: MensajesType) {
-    let sumatorio = 0;
-
-    sumatorio += mensajes.mensajesTexto;
-    sumatorio += mensajes.mensajesAudio;
-    sumatorio += mensajes.fotos;
-    sumatorio += mensajes.videos;
-    sumatorio += mensajes.stickers;
-    sumatorio += mensajes.gifs;
-    sumatorio += mensajes.multimediaOmitido;
-    return sumatorio;
-  }
-
-  sumarMensajesPorTipo = (data: Meses): DataPieChart[] => {
-    const sumatorio: MensajesType = {
-      mensajesTexto: 0,
-      mensajesAudio: 0,
-      fotos: 0,
-      videos: 0,
-      stickers: 0,
-      gifs: 0,
-      multimediaOmitido: 0,
-    };
-
-    Object.values(data).forEach((mensajes) => {
-      sumatorio.mensajesTexto += mensajes.mensajesTexto;
-      sumatorio.mensajesAudio += mensajes.mensajesAudio;
-      sumatorio.fotos += mensajes.fotos;
-      sumatorio.videos += mensajes.videos;
-      sumatorio.stickers += mensajes.stickers;
-      sumatorio.gifs += mensajes.gifs;
-      sumatorio.multimediaOmitido += mensajes.multimediaOmitido;
-    });
-
-    const resultado: { name: string; value: number }[] = [
-      { name: "mensajesTexto", value: sumatorio.mensajesTexto },
-      { name: "mensajesAudio", value: sumatorio.mensajesAudio },
-      { name: "fotos", value: sumatorio.fotos },
-      { name: "videos", value: sumatorio.videos },
-      { name: "stickers", value: sumatorio.stickers },
-      { name: "gifs", value: sumatorio.gifs },
-      { name: "multimediaOmitido", value: sumatorio.multimediaOmitido },
-    ];
-
-    return resultado;
-  };
-  public añosList(jsonObject: Registro[]) {
-    const years = Array.from(
-      new Set(jsonObject.map((registro) => registro.año)),
-    );
-    return years;
-  }
-
-  //Busca los datos para el grafico de barras de mensajes por años
-  public barChartByYear(jsonObject: Registro[]) {
-    const dataByYear: DataStructureByYear = {
-      dataKeys: { key: "", persona1: "", persona2: "" },
-      data: [],
-    };
-
-    //Obtenemos la lista de años distintos
-    const years = this.añosList(jsonObject);
-
-    //Por cada año calculamos el numero total de mensajes
-    years.forEach((año) => {
-      const aux = jsonObject.filter((registro) => registro.año === año);
-
-      aux.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      //Creamos la estructura de datos y la añadimos al array
-      const dataChart = {
-        keyData: año,
-        name: año,
-        persona1: this.sumarMensajesDeMeses(aux[0].mensajes),
-        persona2: this.sumarMensajesDeMeses(aux[1].mensajes),
-      };
-      
-      dataByYear.data.push(dataChart);
-
-      //Obtenemos los nombres de las personas
-      dataByYear.dataKeys = {
-        key: "year",
-        persona1: aux[0].nombre,
-        persona2: aux[1].nombre,
-      };
-    });
-
-    return dataByYear;
-  }
-
-  //Busca los datos para el grafico de barras de mensajes por meses
-  public barChartByMonth(jsonObject: Registro[], año: string) {
-    const dataByYear: DataStructureByYear = {
-      dataKeys: { key: "", persona1: "", persona2: "" },
-      data: [],
-    };
-
-    //Si no hay opcion seleccionada año sera igual a 0
-    if (año != "0") {
-      const aux = jsonObject.filter((registro) => registro.año === año);
-      aux.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      //Por cada mes
-      for (let mes = 1; mes <= 12; mes++) {
-        const mesKey = mesesMap[mes as keyof typeof mesesMap];
-        const mensajetypeByMes0 = aux[0].mensajes[0][mesKey] || "";
-        const mensajetypeByMes1 = aux[1].mensajes[0][mesKey] || "";
-
-        //Creamos la estructura de datos y la añadimos al array
-        const dataChart = {
-          keyData: "mes",
-          name: mesesMap[mes],
-          persona1: this.sumarMensajesType(mensajetypeByMes0),
-          persona2: this.sumarMensajesType(mensajetypeByMes1),
-        };
-        dataByYear.data.push(dataChart);
+/** Valida el contrato que devuelve Stats; nunca evalúa datos del archivo. */
+export function parseChatData(input: unknown): ChatRecord[] {
+  const parsed: unknown = typeof input === "string" ? JSON.parse(input) : input;
+  if (!Array.isArray(parsed)) throw new Error("Formato de estadísticas no válido.");
+  return parsed.map((record: unknown) => {
+    if (!isObject(record) || typeof record.nombre !== "string" || !record.nombre.trim() || typeof record.año !== "string" || !/^\d{2}(\d{2})?$/.test(record.año) || !Array.isArray(record.mensajes)) throw new Error("Registro de estadísticas no válido.");
+    const mensajes = record.mensajes.map((months: unknown) => {
+      if (!isObject(months)) throw new Error("Meses no válidos.");
+      const normalized: Months = {};
+      for (const month of MONTHS) {
+        const source = months[month];
+        const counts = emptyCounts();
+        if (source !== undefined) {
+          if (!isObject(source)) throw new Error("Contadores no válidos.");
+          for (const key of CATEGORIES) {
+            const value = source[key] ?? 0;
+            if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Error("Contador no válido.");
+            counts[key] = value;
+          }
+        }
+        normalized[month] = counts;
       }
-
-      //Obtenemos los nombres de las personas
-      dataByYear.dataKeys = {
-        key: "mes",
-        persona1: aux[0].nombre,
-        persona2: aux[1].nombre,
-      };
-    }
-
-    return dataByYear;
-  }
-
-  public pieChartByYear(jsonObject: Registro[], año: string, persona: string) {
-
-    let aux: Registro[];
-    let sumatorio:DataPieChart[]=[];
-
-    //Si no hay opcion seleccionada año sera igual a 0
-    if(año!="0"){
-      aux = jsonObject.filter(
-        (registro) => registro.año === año && registro.nombre === persona,
-      );
-  
-       sumatorio = this.sumarMensajesPorTipo(aux[0].mensajes[0]);
-    }
-    
-    return sumatorio;
-  }
-
-
-  public tableChart(jsonObject:Registro[],año:string,persona:string){
-
-    const aux = jsonObject.filter((registro) => registro.año === año && registro.nombre===persona);
-
-
-    return aux[0].mensajes[0];
-  }
-
-
-
-  public personasList(jsonObject: Registro[]) {
-    const personas = Array.from(
-      new Set(jsonObject.map((registro) => registro.nombre)),
-    );
-    personas.sort();
-    return personas;
-  }
+      return normalized;
+    });
+    return { nombre: record.nombre, año: record.año, mensajes };
+  });
 }
-export default BuscadorDatos;
+
+export default class BuscadorDatos {
+  añosList(records: ChatRecord[]) { return [...new Set(records.map((r) => r.año))].sort((a,b) => Number(formatYear(a)) - Number(formatYear(b))); }
+  personasList(records: ChatRecord[]) { return [...new Set(records.map((r) => r.nombre))].sort((a,b) => a.localeCompare(b, "es")); }
+  tableChart(records: ChatRecord[], year: string, person: string): Months {
+    const result: Months = Object.fromEntries(MONTHS.map((month) => [month, emptyCounts()]));
+    for (const record of records) {
+      if ((year !== "0" && record.año !== year) || record.nombre !== person) continue;
+      for (const months of record.mensajes) for (const month of MONTHS) for (const key of CATEGORIES) result[month][key] += months[month]?.[key] ?? 0;
+    }
+    return result;
+  }
+  pieChartByYear(records: ChatRecord[], year: string, person: string): PieData[] {
+    const months = this.tableChart(records, year, person);
+    return CATEGORIES.map((key) => ({ name: LABELS[key], value: MONTHS.reduce((sum, month) => sum + months[month][key], 0) }));
+  }
+  private bars(records: ChatRecord[], year?: string): ChartData {
+    const people = this.personasList(records);
+    const series = people.map((name, index) => ({ key: `person${index}`, name }));
+    const groups = year === undefined ? this.añosList(records) : [...MONTHS];
+    return { series, data: groups.map((group) => {
+      const row: ChartData["data"][number] = { name: year === undefined ? formatYear(group) : group };
+      for (const item of series) {
+        const months = this.tableChart(records, year === undefined ? group : year, item.name);
+        row[item.key] = year === undefined ? MONTHS.reduce((sum, month) => sum + sumCounts(months[month]), 0) : sumCounts(months[group]);
+      }
+      return row;
+    }) };
+  }
+  barChartByYear(records: ChatRecord[]) { return this.bars(records); }
+  barChartByMonth(records: ChatRecord[], year: string) { return this.bars(records, year); }
+}
